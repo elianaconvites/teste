@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Moldura - Frontal e Traseira</title>
+<title>Moldura - Troca de Câmera</title>
 <style>
 * {margin: 0; padding: 0; box-sizing: border-box;}
 html, body {
@@ -14,7 +14,6 @@ html, body {
   font-family: Arial, sans-serif;
 }
 
-/* Câmera em tela inteira */
 #camera {
   position: fixed;
   top: 0;
@@ -22,11 +21,10 @@ html, body {
   width: 100vw;
   height: 100vh;
   object-fit: cover;
-  transform: scaleX(-1); /* Espelha só a frontal */
+  transform: scaleX(-1);
   image-rendering: high-quality;
   filter: brightness(1.05) contrast(1.08) saturate(1.1);
 }
-/* Traseira: sem espelho */
 #camera.traseira {
   transform: scale(1);
 }
@@ -82,7 +80,7 @@ button.gravando {
 <div class="botoes">
   <button onclick="tirarFoto()">📸 Foto</button>
   <button id="btnGravar" onclick="alternarGravacao()">🎥 Gravar</button>
-  <button id="btnCamera" onclick="alternarCamera()">📷 Frontal</button>
+  <button id="btnCamera" onclick="alternarCamera()">📷 Traseira</button>
 </div>
 
 <canvas id="foto" width="1080" height="1920"></canvas>
@@ -95,54 +93,28 @@ const canvasFoto = document.getElementById('foto');
 const ctxFoto = canvasFoto.getContext('2d', { willReadFrequently: true });
 const btnCamera = document.getElementById('btnCamera');
 
-let camAtual = 'user'; // começa pela frontal
-let gravando = false;
-let mediaRecorder;
-let blocos = [];
+let camAtual = 'user'; // inicia na FRONTAL
 
-// ✅ Função corrigida para abrir ambas as câmeras
 function iniciarCamera(tipo) {
-  // Para a câmera anterior completamente
   if (camera.srcObject) {
     camera.srcObject.getTracks().forEach(track => track.stop());
     camera.srcObject = null;
   }
 
-  // Configuração compatível para todos os celulares
-  const configVideo = {
-    facingMode: { exact: tipo } // força o tipo de câmera
-  };
-
-  // Se não encontrar a exata, usa a disponível
   navigator.mediaDevices.getUserMedia({
-    video: configVideo,
+    video: { facingMode: tipo, width: {ideal:1080}, height: {ideal:1920} },
     audio: true
   })
   .then(stream => {
     camera.srcObject = stream;
-    camera.play().catch(e => console.log('Erro ao reproduzir:', e));
+    camera.play().catch(e => console.log(e));
     camera.classList.toggle('traseira', tipo === 'environment');
-    btnCamera.textContent = tipo === 'user' ? '📷 Frontal' : '📷 Traseira';
-    desenharQuadro();
-  })
-  .catch(err => {
-    // Se não aceitar "exact", tenta de forma simples
-    console.log('Modo exato não encontrado, tentando padrão:', err);
-    return navigator.mediaDevices.getUserMedia({
-      video: { facingMode: tipo },
-      audio: true
-    });
-  })
-  .then(stream => {
-    if (!stream) return;
-    camera.srcObject = stream;
-    camera.play().catch(e => console.log('Erro ao reproduzir:', e));
-    camera.classList.toggle('traseira', tipo === 'environment');
-    btnCamera.textContent = tipo === 'user' ? '📷 Frontal' : '📷 Traseira';
+    // ✅ Atualiza o texto do botão com a opção de troca
+    btnCamera.textContent = tipo === 'user' ? '📷 Traseira' : '📷 Frontal';
     desenharQuadro();
   })
   .catch(() => {
-    alert('⚠️ Não foi possível acessar essa câmera. Verifique permissões nas configurações.');
+    alert('Não foi possível acessar essa câmera. Verifique permissões.');
   });
 }
 
@@ -151,7 +123,6 @@ function desenharQuadro() {
   ctxCanal.clearRect(0, 0, 1080, 1920);
   ctxCanal.drawImage(camera, 0, 0, 1080, 1920, 0, 0, 1080, 1920);
 
-  // Suavização leve
   const dados = ctxCanal.getImageData(0, 0, 1080, 1920);
   const pixels = dados.data;
   for (let i = 0; i < pixels.length; i += 4) {
@@ -181,11 +152,9 @@ function tirarFoto() {
   link.click();
 }
 
+let gravando = false, mediaRecorder, blocos = [];
 function alternarGravacao() {
-  if (!camera.srcObject) {
-    alert('Abra a câmera primeiro!');
-    return;
-  }
+  if (!camera.srcObject) return;
   if (!gravando) {
     blocos = [];
     const streamGravacao = canal.captureStream(30);
@@ -194,7 +163,7 @@ function alternarGravacao() {
         mimeType: 'video/webm; codecs=vp9',
         videoBitsPerSecond: 5000000
       });
-    } catch (e) {
+    } catch {
       mediaRecorder = new MediaRecorder(streamGravacao, { mimeType: 'video/webm; codecs=vp8' });
     }
     mediaRecorder.ondataavailable = e => { if (e.data.size > 0) blocos.push(e.data); };
