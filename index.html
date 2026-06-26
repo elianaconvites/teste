@@ -114,7 +114,6 @@ function iniciarCamera(tipo) {
     camera.srcObject = stream;
     camera.play();
     camera.classList.toggle('traseira', tipo === 'environment');
-    // Botão mostra a opção inversa
     btnCamera.textContent = tipo === 'user' ? '📷 Traseira' : '📷 Frontal';
     desenharQuadro();
   })
@@ -129,13 +128,13 @@ function desenharQuadro() {
   ctxCanal.clearRect(0, 0, 1080, 1920);
   ctxCanal.drawImage(camera, 0, 0, 1080, 1920, 0, 0, 1080, 1920);
 
-  // Suavização leve
+  // ✅ SUAVIZAÇÃO MELHORADA DA PELE
   const dados = ctxCanal.getImageData(0, 0, 1080, 1920);
   const pixels = dados.data;
   for (let i = 0; i < pixels.length; i += 4) {
-    pixels[i]     = Math.min(255, pixels[i] * 1.03);
-    pixels[i + 1] = Math.min(255, pixels[i + 1] * 1.02);
-    pixels[i + 2] = Math.min(255, pixels[i + 2] * 1.01);
+    pixels[i]     = Math.min(255, pixels[i] * 1.06);   // Clareia mais
+    pixels[i + 1] = Math.min(255, pixels[i + 1] * 1.05); // Suaviza tom
+    pixels[i + 2] = Math.min(255, pixels[i + 2] * 1.04); // Ajusta cor
   }
   ctxCanal.putImageData(dados, 0, 0);
 
