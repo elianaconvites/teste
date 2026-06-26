@@ -3,57 +3,75 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Moldura - Resolução 1080p</title>
+<title>Moldura - Tela Inteira 1080p</title>
 <style>
 * {margin: 0; padding: 0; box-sizing: border-box;}
-body {background: #000; height: 100vh; overflow: hidden; font-family: Arial, sans-serif;}
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  font-family: Arial, sans-serif;
+}
 
-/* Câmera: resolução nativa 1080p, encaixe exato na moldura */
+/* Câmera ocupa TELA INTEIRA, resolução máxima */
 #camera {
-  position: absolute;
-  top: 24%;
-  left: 8%;
-  width: 84%;
-  height: 48%;
-  object-fit: cover;
-  transform: scaleX(-1);
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  object-fit: cover; /* Preenche toda a tela sem distorcer */
+  transform: scaleX(-1); /* Espelha só a frontal */
   image-rendering: -webkit-optimize-contrast;
   image-rendering: high-quality;
   filter: brightness(1.05) contrast(1.08) saturate(1.1);
 }
-#camera.traseira {transform: scale(1);}
+/* Traseira: sem espelhamento */
+#camera.traseira {
+  transform: scale(1);
+}
 
+/* Moldura fica por cima, tamanho total */
 #moldura {
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  z-index: 15;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 10;
   pointer-events: none;
 }
 
+/* Botões na parte inferior */
 .botoes {
-  position: absolute;
-  bottom: 4%;
+  position: fixed;
+  bottom: 5%;
+  left: 0;
   width: 100%;
   text-align: center;
   z-index: 20;
 }
 
 button {
-  padding: 12px 20px;
-  font-size: 15px;
+  padding: 12px 22px;
+  font-size: 16px;
   border: none;
   border-radius: 30px;
   background: #ff69b4;
   color: white;
-  margin: 0 6px;
+  margin: 0 8px;
   font-weight: bold;
 }
 button.gravando {
   background: #e53935;
   animation: piscar 1.2s infinite;
 }
-@keyframes piscar {0%{opacity:1;} 50%{opacity:0.7;} 100%{opacity:1;}}
+@keyframes piscar {
+  0% {opacity: 1;}
+  50% {opacity: 0.7;}
+  100% {opacity: 1;}
+}
 
 #canal, #foto {display: none;}
 </style>
@@ -84,16 +102,17 @@ let gravando = false;
 let mediaRecorder;
 let blocos = [];
 
-// ✅ Resolução IGUAL ao modelo: 1080×1920 nativo
+// ✅ Resolução exata igual ao modelo: 1080×1920
 function iniciarCamera(tipo) {
   if (camera.srcObject) {
     camera.srcObject.getTracks().forEach(trilha => trilha.stop());
   }
+
   navigator.mediaDevices.getUserMedia({
     video: {
       facingMode: tipo,
-      width: { ideal: 1080, min: 1080, max: 1920 },
-      height: { ideal: 1920, min: 1920, max: 2560 },
+      width: { ideal: 1080, min: 1080, max: 2160 },
+      height: { ideal: 1920, min: 1920, max: 3840 },
       frameRate: { ideal: 30, min: 24 }
     },
     audio: true
@@ -104,14 +123,14 @@ function iniciarCamera(tipo) {
     camera.classList.toggle('traseira', tipo === 'environment');
     desenharQuadro();
   })
-  .catch(() => alert('Permita o uso da câmera e microfone!'));
+  .catch(() => alert('⚠️ Permita acesso à câmera e microfone!'));
 }
 
-// Desenha mantendo resolução máxima e encaixe exato
+// Desenha mantendo proporção e resolução
 function desenharQuadro() {
   ctxCanal.clearRect(0, 0, 1080, 1920);
-  // Posição e tamanho fixos para a moldura
-  ctxCanal.drawImage(camera, 86, 460, 908, 920, 0, 0, 1080, 1920);
+  // Ajuste para encaixar perfeitamente na área vazia da moldura
+  ctxCanal.drawImage(camera, 0, 0, 1080, 1920, 0, 0, 1080, 1920);
 
   // Suavização leve sem perder nitidez
   const dados = ctxCanal.getImageData(0, 0, 1080, 1920);
@@ -129,21 +148,24 @@ function desenharQuadro() {
   if (!gravando) requestAnimationFrame(desenharQuadro);
 }
 
+// Troca entre frontal e traseira
 function alternarCamera() {
   camAtual = camAtual === 'user' ? 'environment' : 'user';
   iniciarCamera(camAtual);
 }
 
+// Tirar foto com qualidade máxima
 function tirarFoto() {
   ctxFoto.imageSmoothingEnabled = true;
   ctxFoto.imageSmoothingQuality = 'high';
   ctxFoto.drawImage(canal, 0, 0);
   const link = document.createElement('a');
-  link.download = 'foto_com_moldura.png';
+  link.download = 'foto_moldura.png';
   link.href = canvasFoto.toDataURL('image/png', 1.0);
   link.click();
 }
 
+// Gravar vídeo com qualidade igual ao modelo
 function alternarGravacao() {
   if (!gravando) {
     blocos = [];
@@ -151,7 +173,7 @@ function alternarGravacao() {
     try {
       mediaRecorder = new MediaRecorder(streamGravacao, {
         mimeType: 'video/webm; codecs=vp9',
-        videoBitsPerSecond: 5000000 // mesma taxa de qualidade do modelo
+        videoBitsPerSecond: 5000000
       });
     } catch (e) {
       mediaRecorder = new MediaRecorder(streamGravacao, {
@@ -164,7 +186,7 @@ function alternarGravacao() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'video_com_moldura.webm';
+      link.download = 'video_moldura.webm';
       link.click();
       URL.revokeObjectURL(url);
     };
