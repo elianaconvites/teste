@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Moldura - Frontal / Traseira</title>
+<title>Moldura - Frontal e Traseira</title>
 <style>
 * {margin: 0; padding: 0; box-sizing: border-box;}
 html, body {
@@ -22,10 +22,11 @@ html, body {
   width: 100vw;
   height: 100vh;
   object-fit: cover;
-  transform: scaleX(-1);
+  transform: scaleX(-1); /* Espelha só a frontal */
   image-rendering: high-quality;
   filter: brightness(1.05) contrast(1.08) saturate(1.1);
 }
+/* Traseira: sem espelho */
 #camera.traseira {
   transform: scale(1);
 }
@@ -94,41 +95,63 @@ const canvasFoto = document.getElementById('foto');
 const ctxFoto = canvasFoto.getContext('2d', { willReadFrequently: true });
 const btnCamera = document.getElementById('btnCamera');
 
-let camAtual = 'user';
+let camAtual = 'user'; // começa pela frontal
 let gravando = false;
 let mediaRecorder;
 let blocos = [];
 
-// Resolução igual ao modelo: 1080×1920
+// ✅ Função corrigida para abrir ambas as câmeras
 function iniciarCamera(tipo) {
+  // Para a câmera anterior completamente
   if (camera.srcObject) {
-    camera.srcObject.getTracks().forEach(trilha => trilha.stop());
+    camera.srcObject.getTracks().forEach(track => track.stop());
+    camera.srcObject = null;
   }
+
+  // Configuração compatível para todos os celulares
+  const configVideo = {
+    facingMode: { exact: tipo } // força o tipo de câmera
+  };
+
+  // Se não encontrar a exata, usa a disponível
   navigator.mediaDevices.getUserMedia({
-    video: {
-      facingMode: tipo,
-      width: { ideal: 1080, min: 1080, max: 2160 },
-      height: { ideal: 1920, min: 1920, max: 3840 },
-      frameRate: { ideal: 30, min: 24 }
-    },
+    video: configVideo,
     audio: true
   })
   .then(stream => {
     camera.srcObject = stream;
-    camera.play();
+    camera.play().catch(e => console.log('Erro ao reproduzir:', e));
     camera.classList.toggle('traseira', tipo === 'environment');
-    // Atualiza o texto do botão
     btnCamera.textContent = tipo === 'user' ? '📷 Frontal' : '📷 Traseira';
     desenharQuadro();
   })
-  .catch(() => alert('⚠️ Permita acesso à câmera e microfone!'));
+  .catch(err => {
+    // Se não aceitar "exact", tenta de forma simples
+    console.log('Modo exato não encontrado, tentando padrão:', err);
+    return navigator.mediaDevices.getUserMedia({
+      video: { facingMode: tipo },
+      audio: true
+    });
+  })
+  .then(stream => {
+    if (!stream) return;
+    camera.srcObject = stream;
+    camera.play().catch(e => console.log('Erro ao reproduzir:', e));
+    camera.classList.toggle('traseira', tipo === 'environment');
+    btnCamera.textContent = tipo === 'user' ? '📷 Frontal' : '📷 Traseira';
+    desenharQuadro();
+  })
+  .catch(() => {
+    alert('⚠️ Não foi possível acessar essa câmera. Verifique permissões nas configurações.');
+  });
 }
 
 function desenharQuadro() {
+  if (!camera.srcObject) return;
   ctxCanal.clearRect(0, 0, 1080, 1920);
   ctxCanal.drawImage(camera, 0, 0, 1080, 1920, 0, 0, 1080, 1920);
 
-  // Suavização leve da pele
+  // Suavização leve
   const dados = ctxCanal.getImageData(0, 0, 1080, 1920);
   const pixels = dados.data;
   for (let i = 0; i < pixels.length; i += 4) {
@@ -142,13 +165,13 @@ function desenharQuadro() {
   if (!gravando) requestAnimationFrame(desenharQuadro);
 }
 
-// Troca de câmera e altera o texto do botão
 function alternarCamera() {
   camAtual = camAtual === 'user' ? 'environment' : 'user';
   iniciarCamera(camAtual);
 }
 
 function tirarFoto() {
+  if (!camera.srcObject) return;
   ctxFoto.imageSmoothingEnabled = true;
   ctxFoto.imageSmoothingQuality = 'high';
   ctxFoto.drawImage(canal, 0, 0);
@@ -159,6 +182,10 @@ function tirarFoto() {
 }
 
 function alternarGravacao() {
+  if (!camera.srcObject) {
+    alert('Abra a câmera primeiro!');
+    return;
+  }
   if (!gravando) {
     blocos = [];
     const streamGravacao = canal.captureStream(30);
