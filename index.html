@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Moldura - Frontal e Traseira</title>
+<title>Moldura - Foto e Vídeo</title>
 <style>
 * {margin: 0; padding: 0; box-sizing: border-box;}
 html, body {
@@ -14,7 +14,7 @@ html, body {
   font-family: Arial, sans-serif;
 }
 
-/* Câmera tela inteira */
+/* Câmera em tela inteira */
 #camera {
   position: fixed;
   top: 0;
@@ -22,7 +22,7 @@ html, body {
   width: 100vw;
   height: 100vh;
   object-fit: cover;
-  transform: scaleX(-1); /* Espelha apenas a frontal */
+  transform: scaleX(-1); /* Espelha só a frontal */
   image-rendering: high-quality;
   filter: brightness(1.05) contrast(1.08) saturate(1.1);
 }
@@ -95,41 +95,32 @@ const canvasFoto = document.getElementById('foto');
 const ctxFoto = canvasFoto.getContext('2d', { willReadFrequently: true });
 const btnCamera = document.getElementById('btnCamera');
 
-let camAtual = 'user'; // inicia na FRONTAL
+let camAtual = 'user'; // começa na FRONTAL
 let gravando = false, mediaRecorder, blocos = [];
 
-// ✅ Configuração estável para abrir ambas as câmeras
+// ✅ Configuração simples e compatível
 function iniciarCamera(tipo) {
-  // Para a câmera anterior completamente
   if (camera.srcObject) {
-    camera.srcObject.getTracks().forEach(track => track.stop());
-    camera.srcObject = null;
+    camera.srcObject.getTracks().forEach(t => t.stop());
   }
 
-  // Configuração compatível com todos os navegadores
   const opcoes = {
-    video: {
-      facingMode: tipo,
-      width: { ideal: 1080, min: 720 },
-      height: { ideal: 1920, min: 1280 },
-      frameRate: { ideal: 30 }
-    },
+    video: { facingMode: tipo },
     audio: true
   };
 
   navigator.mediaDevices.getUserMedia(opcoes)
   .then(stream => {
     camera.srcObject = stream;
-    return camera.play();
-  })
-  .then(() => {
+    camera.play();
     camera.classList.toggle('traseira', tipo === 'environment');
-    // Botão mostra a opção para qual vai trocar
+    // Botão mostra a opção inversa
     btnCamera.textContent = tipo === 'user' ? '📷 Traseira' : '📷 Frontal';
     desenharQuadro();
   })
-  .catch(() => {
-    alert('⚠️ Permita o acesso à câmera e microfone nas configurações do navegador!');
+  .catch(err => {
+    console.log('Erro:', err);
+    alert('⚠️ Permita acesso à câmera e recarregue a página!');
   });
 }
 
@@ -138,7 +129,7 @@ function desenharQuadro() {
   ctxCanal.clearRect(0, 0, 1080, 1920);
   ctxCanal.drawImage(camera, 0, 0, 1080, 1920, 0, 0, 1080, 1920);
 
-  // Suavização leve da pele
+  // Suavização leve
   const dados = ctxCanal.getImageData(0, 0, 1080, 1920);
   const pixels = dados.data;
   for (let i = 0; i < pixels.length; i += 4) {
@@ -204,7 +195,6 @@ function alternarGravacao() {
   }
 }
 
-// Inicia ao carregar
 window.addEventListener('load', () => iniciarCamera(camAtual));
 </script>
 
