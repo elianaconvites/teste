@@ -2,45 +2,46 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
 <title>Moldura — Vídeo Correto</title>
 <style>
-* {margin:0; padding:0; box-sizing:border-box;}
-html,body {width:100%; height:100%; overflow:hidden; background:#000; font-family:Arial,sans-serif;}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#000;font-family:Arial,sans-serif}
 
-#camera {
-  position:fixed; top:0; left:0;
-  width:100vw; height:100vh;
+#camera{
+  position:fixed;top:0;left:0;
+  width:100vw;height:100vh;
   object-fit:cover;
   transform:scaleX(-1);
   image-rendering:high-quality;
-  filter:brightness(1.05) contrast(1.08) saturate(1.1);
+  filter:brightness(1.05) contrast(1.08) saturate(1.1)
 }
-#camera.traseira {transform:scale(1);}
+#camera.traseira{transform:none}
 
-#moldura {
-  position:fixed; top:0; left:0;
-  width:100vw; height:100vh;
-  z-index:10; pointer-events:none;
+#moldura{
+  position:fixed;top:0;left:0;
+  width:100vw;height:100vh;
+  z-index:10;pointer-events:none
 }
 
-.botoes {
-  position:fixed; bottom:5%; left:0;
-  width:100%; text-align:center; z-index:20;
+.botoes{
+  position:fixed;bottom:5%;left:0;
+  width:100%;text-align:center;z-index:20
 }
-button {
-  padding:12px 20px; font-size:15px; border:none; border-radius:30px;
-  background:#ff69b4; color:#fff; margin:0 6px; font-weight:bold;
+button{
+  padding:12px 20px;font-size:15px;border:none;border-radius:30px;
+  background:#ff69b4;color:#fff;margin:0 6px;font-weight:bold
 }
-button.gravando {background:#e53935; animation:piscar 1.2s infinite;}
-@keyframes piscar {0%{opacity:1;}50%{opacity:.7;}100%{opacity:1;}}
+button.gravando{background:#e53935;animation:piscar 1.2s infinite}
+@keyframes piscar{0%{opacity:1}50%{opacity:.7}100%{opacity:1}}
 
-#canal, #foto {display:none;}
+#canal, #foto{display:none}
 </style>
 </head>
 <body>
 
 <video id="camera" autoplay playsinline muted></video>
+<!-- CANAL COM TAMANHO FIXO SEGURO: 1080×1920 -->
 <canvas id="canal" width="1080" height="1920"></canvas>
 <img id="moldura" src="moldura.png" alt="Moldura">
 
@@ -61,10 +62,14 @@ const ctxFoto = canvasFoto.getContext('2d', {willReadFrequently:true});
 const btnCamera = document.getElementById('btnCamera');
 
 let camAtual = 'user';
-let gravando = false, mediaRecorder, blocos = [];
+let gravando = false, mediaRecorder = null, blocos = [];
 
-function iniciarCamera(tipo) {
-  if (camera.srcObject) camera.srcObject.getTracks().forEach(t=>t.stop());
+// ✅ CÂMERA SIMPLES E ESTÁVEL
+function iniciarCamera(tipo){
+  if(camera.srcObject){
+    camera.srcObject.getTracks().forEach(trilha=>trilha.stop());
+    camera.srcObject=null;
+  }
   navigator.mediaDevices.getUserMedia({video:{facingMode:tipo}, audio:true})
   .then(stream=>{
     camera.srcObject = stream; camera.play();
@@ -72,21 +77,22 @@ function iniciarCamera(tipo) {
     btnCamera.textContent = tipo==='user' ? '📷 Traseira' : '📷 Frontal';
     desenharQuadro();
   })
-  .catch(()=>alert('⚠️ Permita câmera e microfone!'));
+  .catch(()=>alert('⚠️ Permita câmera + microfone e recarregue!'));
 }
 
-function desenharQuadro() {
-  if (!camera.srcObject) return;
+function desenharQuadro(){
+  if(!camera.srcObject) return;
   ctxCanal.clearRect(0,0,1080,1920);
-  ctxCanal.drawImage(camera,0,0,1080,1920,0,0,1080,1920);
+  // ✅ SEM CÁLCULOS COMPLEXOS — AJUSTE DIRETO PARA O CANAL
+  ctxCanal.drawImage(camera,0,0,1080,1920);
 
-  // Suavização suave
-  let dados = ctxCanal.getImageData(0,0,1080,1920);
-  let p = dados.data;
+  // Suavização leve, sem travar
+  const dados = ctxCanal.getImageData(0,0,1080,1920);
+  const p = dados.data;
   for(let i=0;i<p.length;i+=4){
-    p[i] = Math.min(255, p[i]*1.06);
-    p[i+1] = Math.min(255, p[i+1]*1.05);
-    p[i+2] = Math.min(255, p[i+2]*1.04);
+    p[i]   = Math.min(255, p[i] * 1.06);
+    p[i+1] = Math.min(255, p[i+1] * 1.05);
+    p[i+2] = Math.min(255, p[i+2] * 1.04);
   }
   ctxCanal.putImageData(dados,0,0);
   ctxCanal.drawImage(document.getElementById('moldura'),0,0,1080,1920);
@@ -101,29 +107,28 @@ function alternarCamera(){
 function tirarFoto(){
   if(!camera.srcObject) return;
   ctxFoto.drawImage(canal,0,0);
-  let a=document.createElement('a');
-  a.download='foto_moldura.png';
-  a.href=canvasFoto.toDataURL('image/png',0.95);
-  a.click();
+  const link=document.createElement('a');
+  link.download='foto_moldura.png';
+  link.href=canvasFoto.toDataURL('image/png',0.95);
+  link.click();
 }
 
-// ✅ Versão SEGURA e compatível para gravação
+// ✅ GRAVAÇÃO SEGURA: APENAS VP8 + 24fps = FUNCIONA EM TUDO
 function alternarGravacao(){
   if(!camera.srcObject) return;
   if(!gravando){
     blocos=[];
-    let stream = canal.captureStream(24); // taxa mais estável
+    const stream = canal.captureStream(24);
     try{
-      // usa formato mais aceito por todos aparelhos
-      mediaRecorder = new MediaRecorder(stream, {mimeType:'video/webm; codecs=vp8'});
-    }catch{ alert('❌ Gravação não suportada neste aparelho'); return; }
+      mediaRecorder = new MediaRecorder(stream, {mimeType:'video/webm;codecs=vp8'});
+    }catch{ alert('⚠️ Gravação não suportada neste aparelho'); return; }
 
     mediaRecorder.ondataavailable = e=>{if(e.data.size>0) blocos.push(e.data);};
     mediaRecorder.onstop = ()=>{
-      let blob = new Blob(blocos, {type:'video/webm'});
-      let url = URL.createObjectURL(blob);
-      let a=document.createElement('a');
-      a.href=url; a.download='video_moldura.webm'; a.click();
+      const blob = new Blob(blocos, {type:'video/webm'});
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href=url; link.download='video_moldura.webm'; link.click();
       URL.revokeObjectURL(url);
     };
     mediaRecorder.start(1000);
